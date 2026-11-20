@@ -1,5 +1,7 @@
 # Security Toolkit
 
+[![tests](https://github.com/Jerryduan729/c-security-toolkit/actions/workflows/tests.yml/badge.svg)](https://github.com/Jerryduan729/c-security-toolkit/actions/workflows/tests.yml)
+
 面向 C 语言课程项目的**软件安全性测试工具**：源码静态检查、授权目标的 HTTP/TLS 检查，
 可选接入大模型生成修复建议，并提供网页界面与可打印的 HTML 报告。
 
