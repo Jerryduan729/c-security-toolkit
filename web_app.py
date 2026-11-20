@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import ai_advisor
 from security_scan import (
     MAX_FILE_BYTES,
+    configure_stdio,
     filter_findings,
     http_findings,
     source_findings,
@@ -523,6 +524,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_stdio()
     args = build_parser().parse_args(argv)
     if not INDEX_FILE.is_file():
         print(f"错误：找不到界面文件 {INDEX_FILE}", file=sys.stderr)

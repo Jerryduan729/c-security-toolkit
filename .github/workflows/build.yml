@@ -40,13 +40,16 @@ jobs:
           BIN=./dist/security-scan
           if [ -f "$BIN.exe" ]; then BIN="$BIN.exe"; fi
           "$BIN" --version
-          "$BIN" --list-rules | head -5
+          "$BIN" --list-rules > rules.txt
+          head -5 rules.txt
           set +e
-          "$BIN" --authorized --source examples > /dev/null
+          "$BIN" --authorized --source examples > scan.txt
           code=$?
           set -e
           echo "示例扫描退出码：$code（预期 1）"
           test "$code" -eq 1
+          grep -q "SEC-101" scan.txt
+          echo "中文输出与检出结果正常"
 
       - name: 上传产物
         uses: actions/upload-artifact@v4

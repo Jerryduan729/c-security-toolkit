@@ -60,6 +60,18 @@ SUPPRESSION_RE = re.compile(r"(?:security-scan|nosec)\s*:\s*ignore", re.IGNORECA
 IGNORE_FILENAME = ".securityignore"
 
 
+def configure_stdio() -> None:
+    """Windows 控制台默认不是 UTF-8，先把标准输出切到 UTF-8，避免中文打印崩溃。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 @dataclass(frozen=True)
 class Rule:
     """一条静态检查规则。suffixes 为空表示对所有文本文件生效。"""
@@ -1158,6 +1170,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Iterable[str] | None = None) -> int:
+    configure_stdio()
     args = build_parser().parse_args(argv)
 
     if args.list_rules:
