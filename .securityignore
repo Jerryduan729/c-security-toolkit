@@ -11,6 +11,9 @@ test_web_app.py
 # 导出的报告里带着扫描到的原始代码片段，不参与二次扫描
 reports/
 
+# 基线文件保存的是「已接受问题」的代码片段，同样不参与二次扫描
+*.baseline.json
+
 # 教学示例是故意留有漏洞的代码，只在显式指定 --source examples 时扫描
 examples/
 

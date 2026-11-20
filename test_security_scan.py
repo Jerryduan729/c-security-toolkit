@@ -12,15 +12,20 @@ from unittest import mock
 from security_scan import (
     SOURCE_RULES,
     _cookie_findings,
+    apply_baseline,
     filter_findings,
+    fingerprint,
     http_findings,
+    load_baseline,
     main,
     render_json,
     render_markdown,
     render_sarif,
     scan_file,
+    should_fail,
     source_findings,
     strip_c_comments,
+    write_baseline,
 )
 
 EXAMPLES = Path(__file__).resolve().parent / "examples"
@@ -170,6 +175,85 @@ class RuleMetadataTests(unittest.TestCase):
              "SEC-105", "SEC-107", "SEC-108", "SEC-110"} <= vulnerable
         )
         self.assertEqual(source_findings(EXAMPLES / "safe_demo.c"), [])
+
+
+class BaselineTests(unittest.TestCase):
+    FINDING = {"id": "SEC-101", "name": "禁用 gets", "severity": "CRITICAL",
+               "file": "a.c", "line": 3, "message": "溢出", "evidence": "gets(s1);"}
+
+    def test_fingerprint_ignores_line_number(self):
+        moved = dict(self.FINDING, line=99)
+        self.assertEqual(fingerprint(self.FINDING), fingerprint(moved))
+
+    def test_fingerprint_changes_with_evidence(self):
+        other = dict(self.FINDING, evidence="gets(s2);")
+        self.assertNotEqual(fingerprint(self.FINDING), fingerprint(other))
+
+    def test_write_load_apply_round_trip(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "baseline.json"
+            count = write_baseline(path, [self.FINDING])
+            marks = load_baseline(path)
+        self.assertEqual(count, 1)
+        self.assertEqual(apply_baseline([self.FINDING], marks), ([], 1))
+
+    def test_invalid_baseline_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.json"
+            path.write_text("{not json", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_baseline(path)
+        with self.assertRaises(ValueError):
+            load_baseline(Path("/nonexistent/baseline.json"))
+
+    def test_fail_on_threshold(self):
+        critical = [self.FINDING]
+        high = [dict(self.FINDING, severity="HIGH")]
+        self.assertTrue(should_fail(critical, "high"))
+        self.assertFalse(should_fail(high, "critical"))
+        self.assertTrue(should_fail(high, "medium"))
+        self.assertFalse(should_fail(critical, "none"))
+
+
+class BaselineCommandLineTests(unittest.TestCase):
+    def test_write_then_ignore(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "bad.c"
+            source.write_text("int main(void) { gets(buf); }\n", encoding="utf-8")
+            baseline = Path(directory) / "baseline.json"
+
+            with contextlib.redirect_stdout(io.StringIO()), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(
+                    main(["--authorized", "--source", str(source),
+                          "--write-baseline", str(baseline)]), 0
+                )
+            self.assertTrue(baseline.is_file())
+
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main(["--authorized", "--source", str(source),
+                             "--baseline", str(baseline)])
+            self.assertEqual(code, 0)
+            self.assertIn("已按基线忽略 1 条", output.getvalue())
+
+    def test_fail_on_none_never_fails(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "bad.c"
+            source.write_text("int main(void) { gets(buf); }\n", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    main(["--authorized", "--source", str(source), "--fail-on", "none"]), 0
+                )
+
+    def test_fail_on_critical_ignores_high(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "copy.c"
+            source.write_text("strcpy(dst, src);\n", encoding="utf-8")
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    main(["--authorized", "--source", str(source), "--fail-on", "critical"]), 0
+                )
 
 
 class ReportTests(unittest.TestCase):

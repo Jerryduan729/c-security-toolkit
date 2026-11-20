@@ -18,13 +18,13 @@
 ├── docs/                   规则清单、答辩演示脚本
 ├── reports/                导出的 HTML 报告
 ├── .securityignore         扫描忽略清单
-├── test_security_scan.py   扫描与报告测试（33 项）
+├── test_security_scan.py   扫描与报告测试（41 项）
 ├── test_ai_advisor.py      AI 模块测试（15 项）
 ├── test_web_app.py         网页接口测试（12 项）
 └── README.md
 ```
 
-共 60 项单元测试，`python3 -m unittest` 一键运行。
+共 68 项单元测试，`python3 -m unittest` 一键运行。
 
 ## 快速开始
 
@@ -35,7 +35,7 @@ python3 security_scan.py --authorized --source ../test          # 扫描课程 C
 python3 security_scan.py --authorized --url https://example.com # 检查授权站点
 python3 security_scan.py --list-rules                           # 查看全部规则与修复建议
 python3 security_scan.py --authorized --source examples --format sarif   # 输出给 CI
-python3 -m unittest -v                                          # 运行 60 项测试
+python3 -m unittest -v                                          # 运行 68 项测试
 ```
 
 `--authorized` 是强制项，用于确认目标由你拥有或已获得书面授权。
@@ -243,6 +243,10 @@ C 规则只对 C/C++ 后缀生效，不会把 Python 里的同名标识符误判
 | `--json` | 等价于 `--format json`（兼容旧用法） |
 | `--output PATH` | 结果写入文件 |
 | `--list-rules` | 打印全部规则与修复建议后退出（不需 `--authorized`） |
+| `--baseline FILE` | 按基线文件忽略已接受的历史问题 |
+| `--write-baseline FILE` | 把当前结果写成基线后退出 |
+| `--fail-on LEVEL` | 达到该级别返回退出码 1，默认 `high` |
+| `--version` | 打印版本号 |
 | `--min-severity LEVEL` | 只输出不低于该级别的结果 |
 | `--exclude GLOB` | 跳过路径，可重复，如 `--exclude 'test/*'` |
 | `--max-file-size N` | 单文件扫描上限，默认 2 MiB |
@@ -252,8 +256,34 @@ C 规则只对 C/C++ 后缀生效，不会把 Python 里的同名标识符误判
 | `--ai-max-findings` / `--ai-context-lines` | 送分析的条目数、附带的上下文行数 |
 | `--ai-timeout` / `--ai-output` | AI 超时、单独输出文件 |
 
-退出码：`0` 无 CRITICAL/HIGH 结果，`1` 存在 CRITICAL/HIGH，`2` 参数或目标非法。
-退出码按**全部**结果计算，`--min-severity` 只影响输出内容，不会把风险过滤成 0。
+退出码：`0` 未达到 `--fail-on` 阈值，`1` 达到阈值，`2` 参数或目标非法。
+阈值判断基于「基线之外、显示过滤之前」的结果：`--min-severity` 只影响输出内容，不会把风险过滤成 0；
+`--baseline` 则是**显式接受风险**，对应条目不再触发失败。
+
+## 接入 CI：阈值与基线
+
+三道闸门可以组合使用：
+
+```bash
+# 1) 新代码：HIGH 及以上失败（默认），MEDIUM 只提示不拦
+python3 security_scan.py --authorized --source src --fail-on high
+
+# 2) 存量项目：先把现有问题记成基线，之后只对新增问题报警
+python3 security_scan.py --authorized --source src --write-baseline .security-baseline.json
+python3 security_scan.py --authorized --source src --baseline .security-baseline.json
+
+# 3) 输出 SARIF 交给平台（GitHub Code Scanning / SonarQube）
+python3 security_scan.py --authorized --source src --format sarif --output report.sarif
+```
+
+带基线扫描时的输出会明确写出忽略了多少条：
+
+```
+未发现新问题（已按基线忽略 9 条）。
+```
+
+基线指纹由「规则编号 + 文件名 + 命中代码」计算，**行号移动不会失效**，适合持续迭代的代码；
+同一文件里两处完全相同的写法会被视为同一条，这是简化方案的取舍。
 
 ## 忽略机制
 
@@ -280,6 +310,8 @@ legacy_*.c
 - `examples/` 里的代码**故意保留漏洞**，只用于演示检出效果，不要照抄进作业或项目；
 - 注释会被剥离以减少误报，但字符串内的内容仍按原文匹配，可能存在少量误报，用 `security-scan: ignore` 标注即可；
 - AI 分析基于扫描片段，可能给出不准确或过度保守的结论，**必须人工复核**后再写进报告或提交代码；
+- 基线指纹只取「规则 + 文件名 + 命中代码」，同一文件里两处完全相同的写法会被视为同一条；
+  重命名文件或改写代码会让对应基线失效，需要重新生成；
 - 网络检查只请求入口页面，不爬取、不爆破、不尝试利用；
 - 结果用于自查和课程演示，不能替代人工代码审计或专业渗透测试。
 

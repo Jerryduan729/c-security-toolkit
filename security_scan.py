@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import hashlib
 import ipaddress
 import json
 import re
@@ -30,7 +31,9 @@ from typing import Iterable, Iterator, Sequence
 from urllib.parse import urljoin, urlparse
 
 
-USER_AGENT = "Authorized-Security-Scanner/2.1"
+USER_AGENT = "Authorized-Security-Scanner/2.2"
+VERSION = "1.1.0"
+BASELINE_VERSION = 1
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_REDIRECTS = 5
 REDIRECT_CODES = {301, 302, 303, 307, 308}
@@ -735,6 +738,74 @@ def summarize(findings: Sequence[dict]) -> dict[str, int]:
     return counts
 
 
+def fingerprint(finding: dict) -> str:
+    """指纹只取规则、文件名和命中代码，行号移动不会让基线失效。"""
+    source = Path(finding["file"]).name if finding.get("file") else finding.get("url", "")
+    evidence = re.sub(r"\s+", " ", finding.get("evidence", "")).strip()[:160]
+    basis = "|".join([finding.get("id", ""), source, evidence])
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def write_baseline(path: Path, findings: Sequence[dict]) -> int:
+    entries: list[dict] = []
+    seen: set[str] = set()
+    for item in findings:
+        mark = fingerprint(item)
+        if mark in seen:
+            continue
+        seen.add(mark)
+        entries.append({
+            "fingerprint": mark,
+            "id": item.get("id", ""),
+            "file": item.get("file") or item.get("url", ""),
+            "evidence": item.get("evidence", ""),
+        })
+    payload = {
+        "version": BASELINE_VERSION,
+        "generated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "entries": entries,
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return len(entries)
+
+
+def load_baseline(path: Path) -> set[str]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as error:
+        raise ValueError(f"无法读取基线文件 {path}：{error}") from error
+    except json.JSONDecodeError as error:
+        raise ValueError(f"基线文件不是合法 JSON：{path}") from error
+    if not isinstance(payload, dict) or "entries" not in payload:
+        raise ValueError(f"基线文件格式不正确：{path}")
+    marks: set[str] = set()
+    for entry in payload.get("entries") or []:
+        if isinstance(entry, dict) and entry.get("fingerprint"):
+            marks.add(str(entry["fingerprint"]))
+    return marks
+
+
+def apply_baseline(findings: Sequence[dict], fingerprints: set[str]) -> tuple[list[dict], int]:
+    kept: list[dict] = []
+    suppressed = 0
+    for item in findings:
+        if fingerprint(item) in fingerprints:
+            suppressed += 1
+        else:
+            kept.append(item)
+    return kept, suppressed
+
+
+def should_fail(findings: Sequence[dict], threshold: str = "high") -> bool:
+    """达到阈值即返回失败，用于 CI 卡口。"""
+    if threshold == "none":
+        return False
+    limit = SEVERITY_ORDER.get(threshold.upper(), SEVERITY_ORDER["HIGH"])
+    return any(
+        SEVERITY_ORDER.get(item.get("severity", "INFO"), 9) <= limit for item in findings
+    )
+
+
 def _location(finding: dict) -> str:
     if finding.get("file"):
         suffix = f":{finding['line']}" if finding.get("line") else ""
@@ -742,12 +813,17 @@ def _location(finding: dict) -> str:
     return finding.get("url", "")
 
 
-def render_text(findings: Sequence[dict]) -> str:
+def render_text(findings: Sequence[dict], suppressed: int = 0) -> str:
     if not findings:
+        if suppressed:
+            return f"未发现新问题（已按基线忽略 {suppressed} 条）。"
         return "未发现任何结果。"
     counts = summarize(findings)
     summary = "，".join(f"{severity} {count}" for severity, count in counts.items() if count)
-    lines = [f"共发现 {len(findings)} 条结果（{summary}）", ""]
+    header = f"共发现 {len(findings)} 条结果（{summary}）"
+    if suppressed:
+        header += f"，已按基线忽略 {suppressed} 条"
+    lines = [header, ""]
     for finding in findings:
         lines.append(
             f"[{finding['severity']}] {finding['id']} {finding['name']} {_location(finding)}".rstrip()
@@ -768,8 +844,12 @@ def render_text(findings: Sequence[dict]) -> str:
     return "\n".join(lines)
 
 
-def render_json(findings: Sequence[dict]) -> str:
-    payload = {"summary": summarize(findings), "findings": list(findings)}
+def render_json(findings: Sequence[dict], suppressed: int = 0) -> str:
+    payload = {
+        "summary": summarize(findings),
+        "suppressed": suppressed,
+        "findings": list(findings),
+    }
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
@@ -1029,6 +1109,8 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="示例：\n"
                "  python3 security_scan.py --authorized --source ./src\n"
+               "  python3 security_scan.py --authorized --source ./src --fail-on high\n"
+               "  python3 security_scan.py --authorized --source ./src --baseline .security-baseline.json\n"
                "  python3 security_scan.py --authorized --source ./src --ai\n"
                "  python3 security_scan.py --authorized --source ./src --ai --ai-chat\n"
                "  python3 security_scan.py --authorized --url https://example.com --format markdown\n",
@@ -1049,6 +1131,13 @@ def build_parser() -> argparse.ArgumentParser:
                         help="单文件扫描上限字节数")
     parser.add_argument("--list-rules", action="store_true",
                         help="打印全部静态规则后退出（配合 --format markdown 生成文档）")
+    parser.add_argument("--baseline", type=Path, metavar="FILE",
+                        help="按基线文件忽略已接受的历史问题")
+    parser.add_argument("--write-baseline", type=Path, metavar="FILE",
+                        help="把当前结果写成基线后退出，便于存量项目逐步接入")
+    parser.add_argument("--fail-on", choices=("none", "info", "low", "medium", "high", "critical"),
+                        default="high", help="达到该级别即返回退出码 1（默认 high）")
+    parser.add_argument("--version", action="version", version=f"Security Toolkit {VERSION}")
 
     ai_group = parser.add_argument_group("AI 分析（可选）")
     ai_group.add_argument("--ai", action="store_true",
@@ -1084,6 +1173,14 @@ def main(argv: Iterable[str] | None = None) -> int:
             print(rendered)
         return 0
 
+    fingerprints: set[str] = set()
+    if args.baseline:
+        try:
+            fingerprints = load_baseline(args.baseline)
+        except ValueError as error:
+            print(f"错误：{error}", file=sys.stderr)
+            return 2
+
     if not args.authorized:
         print("错误：必须使用 --authorized 确认目标已获得授权。", file=sys.stderr)
         return 2
@@ -1103,16 +1200,33 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(f"错误：{error}", file=sys.stderr)
         return 2
 
-    # 退出码按全部结果计算，避免 --min-severity 过滤后把风险“洗白”为 0
-    has_blocking = any(item["severity"] in ("CRITICAL", "HIGH") for item in findings)
+    suppressed = 0
+    if fingerprints:
+        findings, suppressed = apply_baseline(findings, fingerprints)
 
+    if args.write_baseline:
+        try:
+            count = write_baseline(args.write_baseline, findings)
+        except OSError as error:
+            print(f"错误：无法写入基线 {args.write_baseline}：{error}", file=sys.stderr)
+            return 2
+        print(f"基线已写入 {args.write_baseline}（{count} 条）", file=sys.stderr)
+        return 0
+
+    # 退出码看的是「基线之外、显示过滤之前」的问题：
+    # 基线是显式接受风险，而 --min-severity 只是控制输出噪声
+    decision_findings = findings
     findings = filter_findings(findings, args.min_severity)
+
     output_format = "json" if args.json else args.format
-    renderer = {
-        "text": render_text, "json": render_json,
-        "markdown": render_markdown, "sarif": render_sarif,
-    }[output_format]
-    rendered = renderer(findings)
+    if output_format == "text":
+        rendered = render_text(findings, suppressed)
+    elif output_format == "json":
+        rendered = render_json(findings, suppressed)
+    elif output_format == "markdown":
+        rendered = render_markdown(findings)
+    else:
+        rendered = render_sarif(findings)
 
     ai_text, ai_session = (None, None)
     if args.ai or args.ai_review:
@@ -1142,7 +1256,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.ai_chat and ai_session is not None:
         _chat_loop(ai_session)
 
-    return 1 if has_blocking else 0
+    return 1 if should_fail(decision_findings, args.fail_on) else 0
 
 
 if __name__ == "__main__":
