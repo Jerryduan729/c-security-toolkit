@@ -53,13 +53,19 @@ jobs:
           grep -q "SEC-101" scan.txt
           echo "中文输出与检出结果正常"
 
+      - name: 打包成分发包
+        shell: bash
+        run: |
+          VERSION=dev
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then VERSION="${GITHUB_REF_NAME#v}"; fi
+          echo "版本：$VERSION"
+          python packaging/package.py --version "$VERSION"
+
       - name: 上传产物
         uses: actions/upload-artifact@v4
         with:
           name: security-toolkit-${{ matrix.artifact }}
           if-no-files-found: error
           path: |
-            dist/security-scan
-            dist/security-scan.exe
-            dist/security-toolkit-web
-            dist/security-toolkit-web.exe
+            release/*.zip
+            release/*.tar.gz

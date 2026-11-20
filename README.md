@@ -65,14 +65,14 @@ python3 -m unittest -v                                          # 运行 68 项�
 
 不想装 Python？到 [Releases](https://github.com/Jerryduan729/c-security-toolkit/releases/latest) 下载对应平台的免安装文件：
 
-| 平台 | 文件 | 用法 |
+| 平台 | 压缩包 | 解压后 |
 | --- | --- | --- |
-| macOS（Apple Silicon） | `security-scan-macos-arm64` / `security-toolkit-web-macos-arm64` | `./security-scan-macos-arm64 --authorized --source 目录`；网页版直接双击 |
-| Windows（x64） | `security-scan-windows-x64.exe` / `security-toolkit-web-windows-x64.exe` | 双击 exe 打开网页界面，或命令行扫描 |
-| Linux（x86_64） | `security-scan-linux-x64` / `security-toolkit-web-linux-x64` | `./security-scan-linux-x64 --authorized --source 目录` |
+| macOS（Apple Silicon） | `SecurityToolkit-版本-macos-arm64.zip` | 双击 `启动网页版.command` |
+| Windows（x64） | `SecurityToolkit-版本-windows-x64.zip` | 双击 `启动网页版.bat` |
+| Linux（x86_64） | `SecurityToolkit-版本-linux-x64.tar.gz` | `./start-web.sh` |
 
-首次运行会被 Gatekeeper / SmartScreen 拦一下（未做代码签名），放行方式、架构说明和自行打包方法见
-[docs/跨平台运行.md](docs/跨平台运行.md)；下载后可用 `SHA256SUMS.txt` 校验完整性。
+压缩包里含启动脚本和 `使用说明.txt`，解压后双击即可（macOS 首次需右键 → 打开放行一次）。
+放行方式、架构说明和自行打包方法见 [docs/跨平台运行.md](docs/跨平台运行.md)；下载后可用 `SHA256SUMS.txt` 校验。
 
 ## 示例与文档
 
