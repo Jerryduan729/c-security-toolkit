@@ -1,0 +1,14 @@
+name: diag
+
+on: workflow_dispatch:
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-13, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 探测环境
+        run: uname -a || ver
