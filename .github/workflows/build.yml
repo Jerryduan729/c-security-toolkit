@@ -15,11 +15,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # macOS 托管运行器在当前账号下不可用（任务 1 秒内被取消），
+        # macOS arm64 版本改为在 Apple Silicon 本机执行 packaging/build.py 构建。
         include:
-          - os: macos-14
-            artifact: macos-arm64
           - os: windows-latest
             artifact: windows-x64
+          - os: ubuntu-latest
+            artifact: linux-x64
     steps:
       - uses: actions/checkout@v4
 
