@@ -19,8 +19,9 @@
 ├── web/index.html          网页界面（样式脚本内联，零依赖）
 ├── run.sh                  一键启动网页界面
 ├── examples/               教学示例：vulnerable_demo.c / safe_demo.c
-├── docs/                   规则清单、答辩演示脚本
+├── docs/                   使用说明、规则清单、答辩演示脚本
 ├── reports/                导出的 HTML 报告
+├── .github/workflows/      CI：3.10 / 3.12 双版本跑测试 + 示例扫描
 ├── .securityignore         扫描忽略清单
 ├── test_security_scan.py   扫描与报告测试（41 项）
 ├── test_ai_advisor.py      AI 模块测试（15 项）
