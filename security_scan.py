@@ -32,7 +32,7 @@ from urllib.parse import urljoin, urlparse
 
 
 USER_AGENT = "Authorized-Security-Scanner/2.2"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 BASELINE_VERSION = 1
 MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_REDIRECTS = 5

@@ -17,11 +17,14 @@
 ├── ai_advisor.py           AI 客户端：提示词构建、密钥脱敏、追问会话
 ├── web_app.py              本地网页服务
 ├── web/index.html          网页界面（样式脚本内联，零依赖）
-├── run.sh                  一键启动网页界面
+├── run.sh                  源码启动（macOS / Linux）
+├── 启动-macos.command      双击启动（macOS）
+├── 启动-windows.bat        双击启动（Windows）
+├── packaging/              PyInstaller 配置与跨平台打包脚本
 ├── examples/               教学示例：vulnerable_demo.c / safe_demo.c
-├── docs/                   使用说明、规则清单、答辩演示脚本
+├── docs/                   使用说明、跨平台运行、规则清单、答辩演示脚本
 ├── reports/                导出的 HTML 报告
-├── .github/workflows/      CI：3.10 / 3.12 双版本跑测试 + 示例扫描
+├── .github/workflows/      CI：tests（测试）+ build（macOS arm64 / Windows x64）
 ├── .securityignore         扫描忽略清单
 ├── test_security_scan.py   扫描与报告测试（41 项）
 ├── test_ai_advisor.py      AI 模块测试（15 项）
@@ -58,6 +61,18 @@ python3 -m unittest -v                                          # 运行 68 项�
 
 退出码为 `1`，可直接接入 CI 或提交前钩子。
 
+## 下载即用
+
+不想装 Python？到 [Releases](https://github.com/Jerryduan729/c-security-toolkit/releases/latest) 下载对应平台的免安装文件：
+
+| 平台 | 文件 | 用法 |
+| --- | --- | --- |
+| macOS（Apple Silicon） | `security-scan` / `security-toolkit-web` | `./security-scan --authorized --source 目录`；网页版直接双击 |
+| Windows（x64） | `security-scan.exe` / `security-toolkit-web.exe` | 双击 exe 打开网页界面，或命令行扫描 |
+
+首次运行会被 Gatekeeper / SmartScreen 拦一下（未做代码签名），放行方式、架构说明和自行打包方法见
+[docs/跨平台运行.md](docs/跨平台运行.md)。
+
 ## 示例与文档
 
 | 路径 | 说明 |
@@ -65,6 +80,7 @@ python3 -m unittest -v                                          # 运行 68 项�
 | `examples/vulnerable_demo.c` | 故意保留 8 类问题的教学代码，扫描得 9 条结果（CRITICAL 1 / HIGH 4 / MEDIUM 4） |
 | `examples/safe_demo.c` | 加固后的写法，扫描零结果，用来证明不是「见谁咬谁」 |
 | `docs/使用说明.md` | 从安装到接入 CI 的完整手册，含参数速查与常见问题排查 |
+| `docs/跨平台运行.md` | macOS（Apple Silicon）/ Windows 免安装版使用与自行打包说明 |
 | `docs/规则清单.md` | 17 条静态规则的 CWE 编号与修复建议，由 `--list-rules` 生成，不会和代码走偏 |
 | `docs/答辩演示.md` | 5 分钟演示脚本：操作步骤、要讲的话、常见提问的回答 |
 

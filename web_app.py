@@ -29,9 +29,22 @@ from security_scan import (
     summarize,
 )
 
-APP_DIR = Path(__file__).resolve().parent
+def _bundle_dir() -> Path:
+    """打包成单文件后资源在临时解压目录，源码运行时就是脚本所在目录。"""
+    bundle = getattr(sys, "_MEIPASS", None)
+    return Path(bundle) if bundle else Path(__file__).resolve().parent
+
+
+def _writable_dir() -> Path:
+    """报告写到可写位置：打包后是可执行文件所在目录，源码运行时是项目目录。"""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+APP_DIR = _bundle_dir()
 INDEX_FILE = APP_DIR / "web" / "index.html"
-REPORT_DIR = APP_DIR / "reports"
+REPORT_DIR = _writable_dir() / "reports"
 TOKEN = secrets.token_urlsafe(18)
 MAX_BODY_BYTES = 8 * 1024 * 1024
 REPORT_NAME_RE = re.compile(r"^security-report-[0-9]{8}-[0-9]{6}\.html$")
