@@ -67,11 +67,12 @@ python3 -m unittest -v                                          # 运行 68 项�
 
 | 平台 | 文件 | 用法 |
 | --- | --- | --- |
-| macOS（Apple Silicon） | `security-scan` / `security-toolkit-web` | `./security-scan --authorized --source 目录`；网页版直接双击 |
-| Windows（x64） | `security-scan.exe` / `security-toolkit-web.exe` | 双击 exe 打开网页界面，或命令行扫描 |
+| macOS（Apple Silicon） | `security-scan-macos-arm64` / `security-toolkit-web-macos-arm64` | `./security-scan-macos-arm64 --authorized --source 目录`；网页版直接双击 |
+| Windows（x64） | `security-scan-windows-x64.exe` / `security-toolkit-web-windows-x64.exe` | 双击 exe 打开网页界面，或命令行扫描 |
+| Linux（x86_64） | `security-scan-linux-x64` / `security-toolkit-web-linux-x64` | `./security-scan-linux-x64 --authorized --source 目录` |
 
 首次运行会被 Gatekeeper / SmartScreen 拦一下（未做代码签名），放行方式、架构说明和自行打包方法见
-[docs/跨平台运行.md](docs/跨平台运行.md)。
+[docs/跨平台运行.md](docs/跨平台运行.md)；下载后可用 `SHA256SUMS.txt` 校验完整性。
 
 ## 示例与文档
 
