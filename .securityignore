@@ -1,0 +1,19 @@
+# 扫描器自身的规则表与测试用例里写着「待检测的危险字符串」（如 md5、eval、gets），
+# 那是样例数据而不是真实漏洞，扫描时跳过，避免自检误报。
+
+security_scan.py
+ai_advisor.py
+web_app.py
+test_security_scan.py
+test_ai_advisor.py
+test_web_app.py
+
+# 导出的报告里带着扫描到的原始代码片段，不参与二次扫描
+reports/
+
+# 教学示例是故意留有漏洞的代码，只在显式指定 --source examples 时扫描
+examples/
+
+# 第三方或生成代码可按需在此追加，例如：
+# vendor/
+# build/*.c

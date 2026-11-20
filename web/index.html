@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Toolkit · 软件安全性测试</title>
+<style>
+  :root{
+    --bg:#f4f6fa; --panel:#fff; --text:#111827; --muted:#6b7280; --line:#e5e7eb;
+    --accent:#2563eb; --accent-soft:#eff6ff;
+    --critical:#dc2626; --high:#ea580c; --medium:#d97706; --low:#0284c7; --info:#64748b;
+    --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px -16px rgba(16,24,40,.24);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{margin:0}
+  button{font:inherit;cursor:pointer}
+  input,select{font:inherit;color:inherit}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:12px}
+  .mark{
+    width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(140deg,#1d4ed8,#3b82f6);color:#fff;font-weight:700;font-size:15px;
+    letter-spacing:.5px;
+  }
+  .brand h1{font-size:15px;letter-spacing:.2px}
+  .brand p{margin:1px 0 0;font-size:11.5px;color:var(--muted)}
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 0 3px #d1fae5}
+  .status code{background:#f3f4f6;padding:1px 6px;border-radius:5px;font-size:11px;color:#4b5563}
+
+  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:22px;padding:22px;max-width:1320px;margin:0 auto}
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;
+    box-shadow:var(--shadow);align-self:start;position:sticky;top:88px;
+  }
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:14px}
+  .field{display:block;margin-bottom:13px}
+  .field span{display:block;font-size:12px;color:#374151;margin-bottom:5px}
+  .field input,.field select{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;
+    outline:none;transition:border-color .15s,box-shadow .15s;
+  }
+  .field input:focus,.field select:focus{border-color:#93c5fd;box-shadow:0 0 0 3px var(--accent-soft);background:#fff}
+  .field input::placeholder{color:#9ca3af}
+
+  .switch{display:flex;align-items:center;justify-content:space-between;margin:16px 0 10px;font-size:13px}
+  .switch input{appearance:none;width:38px;height:22px;border-radius:999px;background:#d1d5db;position:relative;outline:none;cursor:pointer;transition:background .18s}
+  .switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .18s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch input:checked{background:var(--accent)}
+  .switch input:checked::after{transform:translateX(16px)}
+
+  .hint{font-size:11.5px;color:var(--muted);margin:6px 0 0;line-height:1.5}
+  .hint.warn{color:#b45309}
+  .divider{height:1px;background:var(--line);margin:18px 0 14px}
+  .actions{display:grid;gap:8px}
+  .btn{
+    padding:9px 14px;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--text);
+    font-weight:600;font-size:13px;transition:background .15s,border-color .15s,transform .06s;
+  }
+  .btn:hover:not(:disabled){background:#f9fafb;border-color:#d1d5db}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover:not(:disabled){background:#1d4ed8;border-color:#1d4ed8}
+  .btn.ghost{background:#fff}
+  .btn.small{padding:6px 11px;font-size:12px;font-weight:500}
+
+  .content{min-width:0}
+  .empty{
+    background:var(--panel);border:1px dashed #d1d5db;border-radius:14px;padding:64px 28px;text-align:center;
+  }
+  .empty h3{font-size:16px;margin-bottom:8px}
+  .empty p{margin:0 auto;max-width:460px;color:var(--muted);font-size:13px}
+  .empty .rules{margin-top:18px;font-size:11.5px;color:#9ca3af}
+
+  .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+  .metric{
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+    box-shadow:var(--shadow);
+  }
+  .metric .num{font-size:22px;font-weight:700;line-height:1.2;font-variant-numeric:tabular-nums}
+  .metric .lbl{font-size:11px;letter-spacing:.6px;color:var(--muted);margin-top:2px}
+  .metric.zero{opacity:.55}
+  .metric.critical .num{color:var(--critical)}
+  .metric.high .num{color:var(--high)}
+  .metric.medium .num{color:var(--medium)}
+  .metric.low .num{color:var(--low)}
+  .metric.info .num{color:var(--info)}
+
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .toolbar .count{font-size:12.5px;color:var(--muted)}
+  .toolbar .grow{flex:1}
+
+  .finding{
+    background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--info);
+    border-radius:10px;padding:12px 14px;margin-bottom:9px;box-shadow:var(--shadow);
+  }
+  .finding.CRITICAL{border-left-color:var(--critical)}
+  .finding.HIGH{border-left-color:var(--high)}
+  .finding.MEDIUM{border-left-color:var(--medium)}
+  .finding.LOW{border-left-color:var(--low)}
+  .fhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .badge{
+    padding:1px 8px;border-radius:999px;color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.4px;
+  }
+  .badge.CRITICAL{background:var(--critical)}
+  .badge.HIGH{background:var(--high)}
+  .badge.MEDIUM{background:var(--medium)}
+  .badge.LOW{background:var(--low)}
+  .badge.INFO{background:var(--info)}
+  .rid{font-size:11.5px;color:var(--muted);font-family:"SF Mono",Menlo,monospace}
+  .cwe{font-size:10.5px;color:#0f766e;background:#ecfdf5;border:1px solid #d1fae5;padding:0 6px;border-radius:999px}
+  .fname{font-weight:600;font-size:13.5px}
+  .loc{margin-left:auto;font-size:11.5px;color:var(--muted);font-family:"SF Mono",Menlo,monospace}
+  .fmsg{margin:6px 0 0;color:#374151;font-size:13px}
+  .ffix{margin:5px 0 0;color:#047857;font-size:12px}
+  .code{
+    margin:8px 0 0;padding:8px 10px;background:#0f172a;color:#e2e8f0;border-radius:7px;
+    font:12px/1.6 "SF Mono",Menlo,Consolas,monospace;overflow-x:auto;white-space:pre;
+  }
+
+  .ai{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-top:18px;box-shadow:var(--shadow)}
+  .ai h2{font-size:14px;display:flex;align-items:center;gap:8px;margin-bottom:4px}
+  .ai h2 .tag{font-size:10px;font-weight:600;color:#1e40af;background:var(--accent-soft);padding:1px 7px;border-radius:999px}
+  .ai .meta{font-size:11.5px;color:var(--muted);margin:0 0 10px}
+  .ai .body{padding-top:4px}
+  .ai .body h2{font-size:16px;margin:18px 0 6px;display:block}
+  .ai .body h3{font-size:14px;margin:16px 0 5px}
+  .ai .body p{margin:8px 0}
+  .ai .body ul,.ai .body ol{margin:8px 0;padding-left:20px}
+  .ai .body li{margin:3px 0}
+  .ai .body table{border-collapse:collapse;width:100%;font-size:12.5px;margin:10px 0}
+  .ai .body th,.ai .body td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}
+  .ai .body th{background:#f8fafc;font-weight:600}
+  .ai .body pre{background:#0f172a;color:#e2e8f0;padding:11px 13px;border-radius:8px;overflow:auto;font-size:12px}
+  .ai .body code{background:#f1f5f9;padding:1px 5px;border-radius:4px;font:12px/1.5 "SF Mono",Menlo,monospace}
+  .ai .body pre code{background:none;padding:0;font-size:12px}
+  .qa{border-top:1px dashed var(--line);margin-top:14px;padding-top:12px}
+  .qa .q{font-weight:600;color:#1e40af;font-size:13px;margin:0 0 6px}
+  .ask{display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .ask input{flex:1;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:#fbfcfe;outline:none}
+  .ask input:focus{border-color:#93c5fd;box-shadow:0 0 0 3px var(--accent-soft);background:#fff}
+
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    background:#111827;color:#f9fafb;padding:9px 16px;border-radius:9px;font-size:13px;
+    box-shadow:0 8px 24px -8px rgba(0,0,0,.4);max-width:80vw;z-index:50;
+  }
+  .toast.error{background:#b91c1c}
+  .spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media (max-width:940px){
+    .layout{grid-template-columns:1fr;padding:16px}
+    .panel{position:static}
+    .summary{grid-template-columns:repeat(3,1fr)}
+    .status .cwd{display:none}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <div class="mark">ST</div>
+    <div>
+      <h1>Security Toolkit</h1>
+      <p>软件安全性测试 · 静态扫描 + AI 分析</p>
+    </div>
+  </div>
+  <div class="status">
+    <span class="dot"></span>本地运行
+    <code class="cwd" id="cwdText">—</code>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="panel">
+    <h2>扫描配置</h2>
+    <label class="field">
+      <span>源码路径</span>
+      <input id="source" value="examples" placeholder="目录或单个文件" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>目标 URL（可选）</span>
+      <input id="url" placeholder="https://example.com" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>最低级别</span>
+      <select id="minSeverity">
+        <option value="INFO">全部（INFO 及以上）</option>
+        <option value="LOW">LOW 及以上</option>
+        <option value="MEDIUM">MEDIUM 及以上</option>
+        <option value="HIGH">仅 HIGH / CRITICAL</option>
+      </select>
+    </label>
+
+    <div class="divider"></div>
+
+    <label class="switch">
+      <span>AI 分析</span>
+      <input type="checkbox" id="aiEnabled" checked>
+    </label>
+    <label class="field">
+      <span>模型</span>
+      <input id="aiModel" placeholder="gpt-4o-mini" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>接口地址</span>
+      <input id="aiBase" placeholder="https://api.openai.com/v1" autocomplete="off">
+    </label>
+    <p class="hint" id="aiHint">检查 AI 配置中…</p>
+
+    <div class="actions" style="margin-top:16px">
+      <button class="btn primary" id="scanBtn">开始扫描</button>
+    </div>
+    <p class="hint">快捷键：⌘ / Ctrl + Enter</p>
+  </aside>
+
+  <section class="content">
+    <div class="empty" id="empty">
+      <h3>还没有扫描结果</h3>
+      <p>在左侧填写源码目录或授权 URL，点击「开始扫描」。扫描完成后可让 AI 解释风险、给出修复代码，并导出 HTML 报告。</p>
+      <p class="rules">内置规则 SEC-001 ~ SEC-007（通用）· SEC-101 ~ SEC-110（C/C++）· HTTP / TLS / Cookie 检查</p>
+    </div>
+
+    <div id="results" hidden>
+      <div class="summary" id="summary"></div>
+      <div class="toolbar">
+        <span class="count" id="countLine"></span>
+        <span class="grow"></span>
+        <button class="btn ghost small" id="aiBtn">生成 AI 分析</button>
+        <button class="btn ghost small" id="exportBtn">导出 HTML 报告</button>
+      </div>
+      <div id="findings"></div>
+      <div class="ai" id="aiPanel" hidden>
+        <h2>AI 安全分析 <span class="tag" id="aiModelTag">AI</span></h2>
+        <p class="meta" id="aiMeta"></p>
+        <div class="body" id="aiBody"></div>
+        <div class="ask">
+          <input id="question" placeholder="继续追问，例如：第二条怎么改？" autocomplete="off">
+          <button class="btn small" id="askBtn">提问</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>/*__CONFIG__*/</script>
+<script>
+(function () {
+  "use strict";
+
+  const state = { findings: [], summary: null, aiMarkdown: "", meta: {} };
+  const $ = (id) => document.getElementById(id);
+
+  const SEVERITIES = [
+    ["CRITICAL", "严重"], ["HIGH", "高危"], ["MEDIUM", "中危"], ["LOW", "低危"], ["INFO", "提示"],
+  ];
+
+  function escapeHtml(text) {
+    return String(text == null ? "" : text)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  let toastTimer = null;
+  function toast(message, kind) {
+    const box = $("toast");
+    box.textContent = message;
+    box.className = "toast" + (kind === "error" ? " error" : "");
+    box.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { box.hidden = true; }, 4200);
+  }
+
+  function setBusy(button, busy, text) {
+    if (busy) {
+      button.dataset.label = button.textContent;
+      button.disabled = true;
+      button.innerHTML = '<span class="spinner"></span>' + escapeHtml(text);
+    } else {
+      button.disabled = false;
+      button.textContent = text || button.dataset.label || button.textContent;
+    }
+  }
+
+  async function api(path, body) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Token": window.APP.token },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || ("请求失败（HTTP " + response.status + "）"));
+    return data;
+  }
+
+  function renderSummary(summary) {
+    $("summary").innerHTML = SEVERITIES.map(([key, label]) => {
+      const value = summary[key] || 0;
+      return '<div class="metric ' + key.toLowerCase() + (value ? "" : " zero") + '">' +
+        '<div class="num">' + value + '</div>' +
+        '<div class="lbl">' + key + ' · ' + label + '</div></div>';
+    }).join("");
+  }
+
+  function renderFindings(findings) {
+    if (!findings.length) {
+      $("findings").innerHTML =
+        '<div class="empty" style="padding:36px 20px"><h3>没有发现匹配的问题</h3>' +
+        '<p>可以放宽「最低级别」，或换一个源码目录再试。</p></div>';
+      return;
+    }
+    $("findings").innerHTML = findings.map((item) => {
+      const location = item.file ? item.file + (item.line ? ":" + item.line : "") : (item.url || "");
+      const evidence = item.evidence || "";
+      const cwe = item.cwe ? '<span class="cwe">' + escapeHtml(item.cwe) + '</span>' : "";
+      const fix = item.fix ? '<p class="ffix">建议：' + escapeHtml(item.fix) + '</p>' : "";
+      return '<article class="finding ' + escapeHtml(item.severity) + '">' +
+        '<div class="fhead">' +
+          '<span class="badge ' + escapeHtml(item.severity) + '">' + escapeHtml(item.severity) + '</span>' +
+          '<span class="rid">' + escapeHtml(item.id) + '</span>' +
+          cwe +
+          '<span class="fname">' + escapeHtml(item.name) + '</span>' +
+          '<span class="loc">' + escapeHtml(location) + '</span>' +
+        '</div>' +
+        '<p class="fmsg">' + escapeHtml(item.message || "") + '</p>' +
+        (evidence ? '<pre class="code">' + escapeHtml(evidence) + '</pre>' : "") +
+        fix +
+      '</article>';
+    }).join("");
+  }
+
+  function resetAI() {
+    state.aiMarkdown = "";
+    $("aiPanel").hidden = true;
+    $("aiBody").innerHTML = "";
+    $("question").value = "";
+  }
+
+  async function runScan() {
+    const button = $("scanBtn");
+    setBusy(button, true, "扫描中…");
+    try {
+      const data = await api("/api/scan", {
+        source: $("source").value.trim(),
+        url: $("url").value.trim(),
+        min_severity: $("minSeverity").value,
+      });
+      state.findings = data.findings;
+      state.summary = data.summary;
+      state.meta = {
+        source: data.source, url: data.url, elapsed_ms: data.elapsed_ms,
+      };
+      renderSummary(data.summary);
+      renderFindings(data.findings);
+      $("countLine").textContent =
+        "共 " + data.count + " 条结果 · 耗时 " + data.elapsed_ms + " ms" +
+        (data.source ? " · " + data.source : "");
+      $("empty").hidden = true;
+      $("results").hidden = false;
+      resetAI();
+      saveInputs();
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      setBusy(button, false, "开始扫描");
+    }
+  }
+
+  function aiUsable() {
+    if (!window.APP.aiReady) {
+      toast("未检测到 API Key，请先配置 SECURITY_AI_API_KEY 并重启服务", "error");
+      return false;
+    }
+    if (!$("aiEnabled").checked) {
+      toast("已关闭 AI 分析，请先打开左侧开关", "error");
+      return false;
+    }
+    return true;
+  }
+
+  function aiPayload() {
+    return {
+      findings: state.findings,
+      model: $("aiModel").value.trim(),
+      base_url: $("aiBase").value.trim(),
+      max_findings: 20,
+      context_lines: 2,
+    };
+  }
+
+  async function runAI() {
+    if (!state.findings.length) { toast("先扫描出结果再分析", "error"); return; }
+    if (!aiUsable()) return;
+    const button = $("aiBtn");
+    setBusy(button, true, "分析中…");
+    try {
+      const data = await api("/api/ai", aiPayload());
+      state.aiMarkdown = data.markdown;
+      $("aiPanel").hidden = false;
+      $("aiModelTag").textContent = data.model;
+      $("aiMeta").textContent = "模型：" + data.model + " · 基于 " +
+        Math.min(state.findings.length, 20) + " 条结果";
+      $("aiBody").innerHTML = data.html;
+      $("aiPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      setBusy(button, false, "生成 AI 分析");
+    }
+  }
+
+  async function ask() {
+    const question = $("question").value.trim();
+    if (!question) return;
+    if (!state.aiMarkdown) { toast("请先生成 AI 分析", "error"); return; }
+    const button = $("askBtn");
+    setBusy(button, true, "思考中…");
+    try {
+      const data = await api("/api/ai", Object.assign(aiPayload(), {
+        analysis: state.aiMarkdown,
+        question: question,
+      }));
+      const block = document.createElement("div");
+      block.className = "qa";
+      block.innerHTML = '<p class="q">追问：' + escapeHtml(question) + '</p><div class="body">' +
+        data.html + '</div>';
+      $("aiBody").appendChild(block);
+      state.aiMarkdown += "\n\n**追问：** " + question + "\n\n" + data.markdown;
+      $("question").value = "";
+      block.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      setBusy(button, false, "提问");
+    }
+  }
+
+  async function exportReport() {
+    if (!state.findings.length) { toast("先扫描出结果再导出", "error"); return; }
+    const button = $("exportBtn");
+    setBusy(button, true, "生成中…");
+    try {
+      const data = await api("/api/export", {
+        findings: state.findings,
+        ai_analysis: state.aiMarkdown,
+        meta: state.meta,
+      });
+      toast("报告已生成：" + data.path);
+      window.open(data.url, "_blank");
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      setBusy(button, false, "导出 HTML 报告");
+    }
+  }
+
+  function saveInputs() {
+    try {
+      localStorage.setItem("security-toolkit.inputs", JSON.stringify({
+        source: $("source").value, url: $("url").value,
+        minSeverity: $("minSeverity").value,
+        aiEnabled: $("aiEnabled").checked,
+        aiModel: $("aiModel").value, aiBase: $("aiBase").value,
+      }));
+    } catch (error) { /* 隐私模式下忽略 */ }
+  }
+
+  function loadInputs() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("security-toolkit.inputs") || "null");
+      if (!saved) return;
+      if (saved.source) $("source").value = saved.source;
+      if (saved.url) $("url").value = saved.url;
+      if (saved.minSeverity) $("minSeverity").value = saved.minSeverity;
+      if (typeof saved.aiEnabled === "boolean") $("aiEnabled").checked = saved.aiEnabled;
+      if (saved.aiModel) $("aiModel").value = saved.aiModel;
+      if (saved.aiBase) $("aiBase").value = saved.aiBase;
+    } catch (error) { /* 忽略损坏的本地状态 */ }
+  }
+
+  function init() {
+    $("cwdText").textContent = window.APP.cwd || "";
+    if (window.APP.model) $("aiModel").value = window.APP.model;
+    if (window.APP.baseUrl) $("aiBase").value = window.APP.baseUrl;
+
+    const hint = $("aiHint");
+    if (!window.APP.aiReady) {
+      hint.className = "hint warn";
+      hint.textContent = "未检测到 API Key：设置 SECURITY_AI_API_KEY 后重启服务即可启用。扫描功能不受影响。";
+      $("aiBtn").title = "需要配置 API Key";
+    } else if (window.APP.baseUrl.indexOf("localhost") === -1 && window.APP.baseUrl.indexOf("127.0.0.1") === -1) {
+      hint.textContent = "已检测到远程模型配置，分析时会发送命中代码片段。";
+    } else {
+      hint.textContent = "已连接本地模型：" + window.APP.model;
+    }
+
+    loadInputs();
+    $("scanBtn").addEventListener("click", runScan);
+    $("aiBtn").addEventListener("click", runAI);
+    $("askBtn").addEventListener("click", ask);
+    $("exportBtn").addEventListener("click", exportReport);
+    $("question").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") ask();
+    });
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") runScan();
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
