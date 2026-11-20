@@ -24,7 +24,20 @@ SPEC = ROOT / "packaging" / "security_toolkit.spec"
 TARGETS = ("security-scan", "security-toolkit-web")
 
 
+def configure_stdio() -> None:
+    """Windows 控制台默认不是 UTF-8，避免中文提示打印时崩溃。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
+
+
 def main() -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(description="打包为独立可执行文件")
     parser.add_argument("--install", action="store_true", help="安装 PyInstaller 后继续")
     args = parser.parse_args()

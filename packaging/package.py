@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import platform
 import shutil
+import sys
 import tarfile
 import tempfile
 import zipfile
@@ -23,6 +24,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LAUNCHERS = ROOT / "packaging" / "launchers"
+
+
+def configure_stdio() -> None:
+    """Windows 控制台默认不是 UTF-8，避免中文路径/提示打印时崩溃。"""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except (ValueError, OSError):
+            pass
 
 MACOS_README = """Security Toolkit {version} · macOS（Apple Silicon）
 ====================================================
@@ -197,6 +210,7 @@ def sha256(path: Path) -> str:
 
 
 def main() -> int:
+    configure_stdio()
     parser = argparse.ArgumentParser(description="生成解压即用的分发包")
     parser.add_argument("--version", default="dev", help="版本号，用于命名压缩包")
     parser.add_argument("--platform", default="host", choices=("host", "all", *PLATFORMS))
